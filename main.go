@@ -18,7 +18,7 @@ func main() {
 	// Stock Data Route
 	router.GET("/stock/:symbol", func(c *gin.Context) {
 		symbol := c.Param("symbol")
-		apiKey := os.Getenv("ALPHA_VANTAGE_API_KEY")
+		apiKey := os.Getenv("PRCL1DXGJDGCPKZB")
 
 		data, err := fetchStock(symbol, apiKey)
 		if err != nil {
