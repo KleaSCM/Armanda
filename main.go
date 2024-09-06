@@ -15,6 +15,9 @@ func main() {
 		panic("Error loading .env file")
 	}
 
+	// Initialize the database connection
+	initDB()
+
 	router := gin.Default()
 
 	// Root Route
@@ -27,10 +30,20 @@ func main() {
 		symbol := c.Param("symbol")
 		apiKey := os.Getenv("ALPHA_VANTAGE_API_KEY")
 
-		data, err := fetchStock(symbol, apiKey) // Ensure fetchStock is defined in the same package
+		data, err := fetchStock(symbol, apiKey)
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch stock data"})
 			return
+		}
+
+		// Save stock data in the database
+		for _, stockInfo := range data.TimeSeries {
+			price := stockInfo["4. close"]
+			err := saveStockData(symbol, price) // Save the price to the DB
+			if err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save stock data"})
+				return
+			}
 		}
 
 		c.JSON(http.StatusOK, gin.H{
