@@ -5,9 +5,16 @@ import (
 	"os"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	// Load environment variables from .env file
+	err := godotenv.Load()
+	if err != nil {
+		panic("Error loading .env file")
+	}
+
 	router := gin.Default()
 
 	// Root Route
@@ -18,7 +25,7 @@ func main() {
 	// Stock Data Route
 	router.GET("/stock/:symbol", func(c *gin.Context) {
 		symbol := c.Param("symbol")
-		apiKey := os.Getenv("PRCL1DXGJDGCPKZB")
+		apiKey := os.Getenv("ALPHA_VANTAGE_API_KEY")
 
 		data, err := fetchStock(symbol, apiKey)
 		if err != nil {

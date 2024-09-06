@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"os"
 )
 
 const apiURL = "https://www.alphavantage.co/query"
@@ -36,17 +35,4 @@ func fetchStock(symbol string, apiKey string) (StockData, error) {
 	}
 
 	return data, nil
-}
-
-func main() {
-	apiKey := os.Getenv("PRCL1DXGJDGCPKZB") // key environment variables
-
-	symbol := "AAPL" // Stock symbol
-	data, err := fetchStock(symbol, apiKey)
-	if err != nil {
-		fmt.Println("Error fetching stock data:", err)
-		return
-	}
-
-	fmt.Printf("Stock data for %s: %v\n", symbol, data)
 }
