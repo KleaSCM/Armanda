@@ -27,7 +27,7 @@ func main() {
 		symbol := c.Param("symbol")
 		apiKey := os.Getenv("ALPHA_VANTAGE_API_KEY")
 
-		data, err := fetchStock(symbol, apiKey)
+		data, err := fetchStock(symbol, apiKey) // Ensure fetchStock is defined in the same package
 		if err != nil {
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch stock data"})
 			return
