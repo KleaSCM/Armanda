@@ -89,3 +89,4 @@ docker-compose.override.yml
 
 # Ignore alphakey.txt
 alphakey.txt
+.txt
