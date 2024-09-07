@@ -104,12 +104,14 @@ const Home: React.FC = () => {
 
 // Helper function to transform stock data for scatter plots
 const transformStockDataForScatter = (data: StockData): ScatterData => {
-  const priceVolume = data.historical.map((point) => ({
+  const historicalData = data.historical || [];
+
+  const priceVolume = historicalData.map((point) => ({
     x: point.c, // Closing price
     y: point.v ? point.v / 1000 : 0, // Volume in thousands
   }));
 
-  const riskReturn = data.historical.map((point) => ({
+  const riskReturn = historicalData.map((point) => ({
     x: calculateRisk(point), // Placeholder function for risk calculation
     y: calculateReturn(point), // Placeholder function for return calculation
   }));
