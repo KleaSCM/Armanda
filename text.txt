@@ -1,7 +1,0 @@
-curl http://localhost:8080/stockdata
-curl http://localhost:8080/alerts/all
-
-
-		"APPL": {{Time: "10:00", Price: 123.45}, {Time: "10:01", Price: 122.90}},
-		"GOOG": {{Time: "10:00", Price: 678.90}, {Time: "10:01", Price: 679.45}},
-		"TSLA": {{Time: "10:00", Price: 750.00}, {Time: "10:01", Price: 745.10}},

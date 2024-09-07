@@ -1,0 +1,743 @@
+curl http://localhost:8080/stockdata
+curl http://localhost:8080/alerts/all
+
+
+		"APPL": {{Time: "10:00", Price: 123.45}, {Time: "10:01", Price: 122.90}},
+		"GOOG": {{Time: "10:00", Price: 678.90}, {Time: "10:01", Price: 679.45}},
+		"TSLA": {{Time: "10:00", Price: 750.00}, {Time: "10:01", Price: 745.10}},
+
+
+-------------------------------------------------
+
+
+//components/AlertForm.tsx
+
+import React, { useState } from 'react';
+import { Alert } from '../types'; 
+
+interface AlertFormProps {
+    onAlertCreate: (alert: Alert) => void;
+}
+
+const AlertForm: React.FC<AlertFormProps> = ({ onAlertCreate }) => {
+    const [symbol, setSymbol] = useState<string>('');
+    const [price, setPrice] = useState<string>('');
+    const [userID, setUserID] = useState<string>('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        const alert: Alert = { symbol, price: parseFloat(price), userID };
+        onAlertCreate(alert);
+    };
+
+    return (
+        <form onSubmit={handleSubmit}>
+            <input
+                type="text"
+                value={symbol}
+                onChange={(e) => setSymbol(e.target.value)}
+                placeholder="Stock Symbol"
+            />
+            <input
+                type="text"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                placeholder="Price"
+            />
+            <input
+                type="text"
+                value={userID}
+                onChange={(e) => setUserID(e.target.value)}
+                placeholder="User ID"
+            />
+            <button type="submit">Create Alert</button>
+        </form>
+    );
+};
+
+export default AlertForm;
+
+
+//components/Stock.tsx
+
+import React from 'react';
+import { StockData } from '../types'; 
+
+interface StockProps {
+    stock: StockData;
+}
+
+const Stock: React.FC<StockProps> = ({ stock }) => {
+    return (
+        <div>
+            <h3>{stock.symbol}</h3>
+            <p>Price: {stock.price}</p>
+        </div>
+    );
+};
+
+export default Stock;
+
+
+// components/StockDashboard.tsx
+
+import React, { useState, useEffect } from 'react';
+import { Line, Bar, Scatter, Pie, Radar } from 'react-chartjs-2';
+import { Chart } from 'chart.js';
+import annotationPlugin from 'chartjs-plugin-annotation';
+import 'chartjs-plugin-annotation';
+import { RSI, MACD, BollingerBands } from 'technicalindicators';
+import HeatMap from 'react-d3-heatmap';
+import { fetchStockData, fetchEconomicData, fetchHistoricalPrices } from '../services/stockApi'; // Assume you have an API service for fetching data
+
+Chart.register(annotationPlugin);
+
+const StockDashboard: React.FC = () => {
+  const [stockSymbol, setStockSymbol] = useState<string>('AAPL');
+  const [stockData, setStockData] = useState<number[]>([]);
+  const [volumeData, setVolumeData] = useState<number[]>([]);
+  const [rsiValues, setRsiValues] = useState<number[]>([]);
+  const [macdValues, setMacdValues] = useState<number[]>([]);
+  const [bollingerBands, setBollingerBands] = useState<any>([]);
+  const [historicalData, setHistoricalData] = useState<number[]>([]);
+  const [sectorPerformance, setSectorPerformance] = useState<any[]>([]);
+  const [economicImpact, setEconomicImpact] = useState<any[]>([]);
+
+  // Fetch stock data when the component mounts or stock symbol changes
+  useEffect(() => {
+    const fetchData = async () => {
+      const data = await fetchStockData(stockSymbol);
+      setStockData(data.price);
+      setVolumeData(data.volume);
+
+      // RSI, MACD, Bollinger Bands Calculations
+      setRsiValues(RSI.calculate({ values: data.price, period: 14 }));
+      setMacdValues(MACD.calculate({ values: data.price, fastPeriod: 12, slowPeriod: 26, signalPeriod: 9 }));
+      setBollingerBands(BollingerBands.calculate({ values: data.price, period: 20, stdDev: 2 }));
+
+      // Historical data
+      const historical = await fetchHistoricalPrices(stockSymbol);
+      setHistoricalData(historical);
+
+      // Sector Performance Data
+      const sectorData = await fetchEconomicData();
+      setSectorPerformance(sectorData.sectors);
+      setEconomicImpact(sectorData.economicImpact);
+    };
+
+    fetchData();
+  }, [stockSymbol]);
+
+  // Example chart data for Line Chart (Price Over Time)
+  const lineChartData = {
+    labels: historicalData.map((data: any) => data.date),
+    datasets: [
+      {
+        label: 'Stock Price',
+        data: historicalData.map((data: any) => data.price),
+        borderColor: 'rgba(75, 192, 192, 1)',
+        fill: false,
+      },
+      {
+        label: 'Bollinger Bands Upper',
+        data: bollingerBands.upper,
+        borderColor: 'rgba(255, 99, 132, 1)',
+        borderDash: [5, 5],
+      },
+      {
+        label: 'Bollinger Bands Lower',
+        data: bollingerBands.lower,
+        borderColor: 'rgba(54, 162, 235, 1)',
+        borderDash: [5, 5],
+      },
+    ],
+  };
+
+  // Example chart data for RSI
+  const rsiChartData = {
+    labels: historicalData.map((data: any) => data.date),
+    datasets: [
+      {
+        label: 'RSI',
+        data: rsiValues,
+        borderColor: 'rgba(153, 102, 255, 1)',
+        fill: false,
+      },
+    ],
+  };
+
+  // Example data for MACD
+  const macdChartData = {
+    labels: historicalData.map((data: any) => data.date),
+    datasets: [
+      {
+        label: 'MACD Line',
+        data: macdValues.map((macd) => macd.MACD),
+        borderColor: 'rgba(255, 206, 86, 1)',
+        fill: false,
+      },
+      {
+        label: 'Signal Line',
+        data: macdValues.map((macd) => macd.signal),
+        borderColor: 'rgba(255, 159, 64, 1)',
+        fill: false,
+      },
+    ],
+  };
+
+  // Example Pie Chart for Sector Breakdown
+  const sectorBreakdownData = {
+    labels: sectorPerformance.map((sector: any) => sector.name),
+    datasets: [
+      {
+        data: sectorPerformance.map((sector: any) => sector.value),
+        backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#F7464A'],
+      },
+    ],
+  };
+
+  // Heatmap for Sector Performance
+  const heatmapData = sectorPerformance.map((sector: any) => [sector.name, sector.performance]);
+
+  // Scatter Plot (Price vs. Volume)
+  const scatterPlotData = {
+    datasets: [
+      {
+        label: 'Price vs. Volume',
+        data: stockData.map((price, index) => ({ x: price, y: volumeData[index] })),
+        backgroundColor: 'rgba(75, 192, 192, 0.6)',
+      },
+    ],
+  };
+
+  // Bar Chart for Historical Price Distribution
+  const priceDistributionData = {
+    labels: ['Price Range 1', 'Price Range 2', 'Price Range 3'],
+    datasets: [
+      {
+        label: 'Frequency of Price Points',
+        data: [10, 20, 30], // Placeholder for frequency data
+        backgroundColor: 'rgba(75,192,192,0.4)',
+      },
+    ],
+  };
+
+  return (
+    <div className="stock-dashboard">
+      <div className="chart-container">
+        {/* Stock Price Over Time */}
+        <div className="chart">
+          <h3>Stock Price & Bollinger Bands</h3>
+          <Line data={lineChartData} />
+        </div>
+
+        {/* RSI Chart */}
+        <div className="chart">
+          <h3>Relative Strength Index (RSI)</h3>
+          <Line data={rsiChartData} />
+        </div>
+
+        {/* MACD Chart */}
+        <div className="chart">
+          <h3>MACD</h3>
+          <Line data={macdChartData} />
+        </div>
+
+        {/* Sector Breakdown Pie Chart */}
+        <div className="chart">
+          <h3>Sector Breakdown</h3>
+          <Pie data={sectorBreakdownData} />
+        </div>
+
+        {/* Heatmap for Sector Performance */}
+        <div className="chart">
+          <h3>Heatmap of Sector Performance</h3>
+          <HeatMap data={heatmapData} />
+        </div>
+
+        {/* Scatter Plot for Price vs Volume */}
+        <div className="chart">
+          <h3>Price vs Volume</h3>
+          <Scatter data={scatterPlotData} />
+        </div>
+
+        {/* Historical Price Distribution Bar Chart */}
+        <div className="chart">
+          <h3>Price Distribution</h3>
+          <Bar data={priceDistributionData} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
+export default StockDashboard;
+
+//components/StockForm.tsx
+import React, { useState } from 'react';
+
+interface StockFormProps {
+    onStockSubmit: (symbol: string) => void;
+}
+
+const StockForm: React.FC<StockFormProps> = ({ onStockSubmit }) => {
+    const [symbol, setSymbol] = useState<string>('');
+
+    const handleSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        onStockSubmit(symbol);
+    };
+
+    return (
+        <form onSubmit={handleSubmit}>
+            <input
+                type="text"
+                value={symbol}
+                onChange={(e) => setSymbol(e.target.value)}
+                placeholder="Enter stock symbol"
+            />
+            <button type="submit">Get Dashboard</button>
+        </form>
+    );
+};
+
+export default StockForm;
+
+// pages/index.tsx
+
+import React, { useEffect, useState } from 'react';
+import { Line, Bar, Doughnut, Scatter, Radar } from 'react-chartjs-2';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  Title,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import annotationPlugin from 'chartjs-plugin-annotation';
+import { fetchStockData, fetchHistoricalPrices, fetchEconomicData } from '../services/stockApi';
+import { calculateMovingAverage, detectCandlestickPatterns } from '../utils/chartUtils';
+
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, Title, Tooltip, Legend, annotationPlugin);
+
+const StockDashboard = () => {
+  const [stockSymbol, setStockSymbol] = useState('AAPL');
+  const [stockData, setStockData] = useState<any>({});
+  const [historicalPrices, setHistoricalPrices] = useState<any[]>([]);
+  const [economicData, setEconomicData] = useState<any>({});
+
+  useEffect(() => {
+    // Fetch stock data on mount and symbol change
+    const loadStockData = async () => {
+      const stock = await fetchStockData(stockSymbol);
+      const historical = await fetchHistoricalPrices(stockSymbol);
+      const economics = await fetchEconomicData();
+
+      setStockData(stock);
+      setHistoricalPrices(historical);
+      setEconomicData(economics);
+    };
+
+    loadStockData();
+  }, [stockSymbol]);
+
+  const handleStockSymbolChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setStockSymbol(event.target.value);
+  };
+
+  return (
+    <div className="stock-dashboard">
+      <h1>Stock Dashboard - {stockSymbol}</h1>
+      
+      <div className="input-group">
+        <input type="text" value={stockSymbol} onChange={handleStockSymbolChange} placeholder="Enter Stock Symbol (e.g., AAPL)" />
+      </div>
+
+      <div className="chart-container">
+        <h2>Line Chart - Price over Time</h2>
+        <Line
+          data={{
+            labels: historicalPrices.map(item => item.date),
+            datasets: [
+              {
+                label: `${stockSymbol} Price`,
+                data: historicalPrices.map(item => item.price),
+                borderColor: 'rgba(75, 192, 192, 1)',
+                backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                fill: true,
+              },
+              {
+                label: '20-Day Moving Average',
+                data: calculateMovingAverage(historicalPrices, 20),
+                borderColor: 'rgba(255, 99, 132, 1)',
+                backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                fill: false,
+              },
+            ],
+          }}
+          options={{
+            plugins: {
+              annotation: {
+                annotations: detectCandlestickPatterns(historicalPrices),
+              },
+            },
+          }}
+        />
+      </div>
+
+      <div className="chart-container">
+        <h2>Bar Chart - Volume over Time</h2>
+        <Bar
+          data={{
+            labels: historicalPrices.map(item => item.date),
+            datasets: [
+              {
+                label: 'Volume',
+                data: stockData.volume,
+                backgroundColor: 'rgba(54, 162, 235, 0.5)',
+              },
+            ],
+          }}
+        />
+      </div>
+
+      <div className="chart-container">
+        <h2>Sector Performance Heatmap</h2>
+        <Radar
+          data={{
+            labels: economicData.sectors.map((sector: any) => sector.name),
+            datasets: [
+              {
+                label: 'Performance',
+                data: economicData.sectors.map((sector: any) => sector.performance),
+                backgroundColor: 'rgba(255, 206, 86, 0.2)',
+                borderColor: 'rgba(255, 206, 86, 1)',
+                borderWidth: 1,
+              },
+            ],
+          }}
+        />
+      </div>
+
+      <div className="chart-container">
+        <h2>Scatter Plot - Price vs Volume</h2>
+        <Scatter
+          data={{
+            datasets: [
+              {
+                label: 'Price vs Volume',
+                data: stockData.volume.map((vol: number, idx: number) => ({
+                  x: vol,
+                  y: stockData.price[idx],
+                })),
+                backgroundColor: 'rgba(75, 192, 192, 0.5)',
+              },
+            ],
+          }}
+        />
+      </div>
+
+      <div className="chart-container">
+        <h2>Pie Chart - Sector Breakdown</h2>
+        <Doughnut
+          data={{
+            labels: economicData.sectors.map((sector: any) => sector.name),
+            datasets: [
+              {
+                data: economicData.sectors.map((sector: any) => sector.value),
+                backgroundColor: ['#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF'],
+              },
+            ],
+          }}
+        />
+      </div>
+    </div>
+  );
+};
+
+export default StockDashboard;
+
+
+// services/stockApi.ts
+
+const API_KEY = 'YOUR_ALPHA_VANTAGE_API_KEY';
+const BASE_URL = 'https://www.alphavantage.co/query';
+
+export const fetchStockData = async (symbol: string) => {
+  const response = await fetch(`${BASE_URL}?function=TIME_SERIES_DAILY_ADJUSTED&symbol=${symbol}&apikey=${API_KEY}`);
+  const data = await response.json();
+  
+  const stockPrices = [];
+  const volumes = [];
+
+  for (const date in data['Time Series (Daily)']) {
+    stockPrices.push({
+      date,
+      price: parseFloat(data['Time Series (Daily)'][date]['4. close']),
+      volume: parseInt(data['Time Series (Daily)'][date]['6. volume']),
+    });
+  }
+
+  return {
+    price: stockPrices.map(item => item.price),
+    volume: stockPrices.map(item => item.volume),
+  };
+};
+
+export const fetchHistoricalPrices = async (symbol: string) => {
+  const response = await fetch(`${BASE_URL}?function=TIME_SERIES_MONTHLY_ADJUSTED&symbol=${symbol}&apikey=${API_KEY}`);
+  const data = await response.json();
+
+  const historicalPrices = [];
+
+  for (const date in data['Monthly Adjusted Time Series']) {
+    historicalPrices.push({
+      date,
+      price: parseFloat(data['Monthly Adjusted Time Series'][date]['4. close']),
+    });
+  }
+
+  return historicalPrices;
+};
+
+export const fetchEconomicData = async () => {
+  // Mockup for sector performance and economic indicators
+  const sectorPerformance = [
+    { name: 'Technology', value: 30, performance: 0.1 },
+    { name: 'Healthcare', value: 25, performance: -0.05 },
+    { name: 'Finance', value: 20, performance: 0.2 },
+    { name: 'Energy', value: 15, performance: -0.1 },
+    { name: 'Consumer Discretionary', value: 10, performance: 0.03 },
+  ];
+
+  const economicImpact = {
+    interestRates: 1.5, // Mock value for interest rates
+    inflationRate: 2.1, // Mock value for inflation rate
+    unemploymentRate: 5.0, // Mock value for unemployment rate
+  };
+
+  return { sectors: sectorPerformance, economicImpact };
+};
+
+
+//utils/api.ts
+
+import axios from 'axios';
+import { StockData } from '../types';
+
+const API_KEY = 'YOUR_ALPHA_VANTAGE_API_KEY'; // Replace with your API key
+
+export const fetchStockData = async (symbol: string): Promise<StockData> => {
+  try {
+    const response = await axios.get(`https://www.alphavantage.co/query`, {
+      params: {
+        function: 'TIME_SERIES_DAILY',
+        symbol: symbol,
+        apikey: API_KEY,
+      },
+    });
+
+    const data = response.data['Time Series (Daily)'];
+    const times = Object.keys(data);
+    const prices = times.map(time => data[time]['4. close']);
+
+    return {
+      times,
+      prices: prices.map(price => parseFloat(price)),
+    };
+  } catch (error) {
+    console.error('Error fetching stock data:', error);
+    return { times: [], prices: [] };
+  }
+};
+
+
+//utils/chartUtils.ts
+
+import { StockData } from '../types';
+
+export const calculateMovingAverages = (prices: number[]): { [key: string]: number[] } => {
+  // Example implementation: calculate a simple moving average for 10 and 30 days
+  const movingAverages = {
+    '10-day': [],
+    '30-day': [],
+  };
+
+  for (let i = 0; i < prices.length; i++) {
+    if (i >= 9) {
+      const avg10 = prices.slice(i - 9, i + 1).reduce((sum, price) => sum + price, 0) / 10;
+      movingAverages['10-day'].push(avg10);
+    } else {
+      movingAverages['10-day'].push(null);
+    }
+
+    if (i >= 29) {
+      const avg30 = prices.slice(i - 29, i + 1).reduce((sum, price) => sum + price, 0) / 30;
+      movingAverages['30-day'].push(avg30);
+    } else {
+      movingAverages['30-day'].push(null);
+    }
+  }
+
+  return movingAverages;
+};
+
+export const detectCandlestickPatterns = (prices: number[]): any[] => {
+  // Example implementation for detecting simple candlestick patterns
+  return [];
+};
+
+
+// main.go
+package main
+
+import (
+	"encoding/json"
+	"log"
+	"net/http"
+	"strings"
+
+	"github.com/gorilla/websocket"
+	"github.com/rs/cors"
+)
+
+var upgrader = websocket.Upgrader{
+	CheckOrigin: func(r *http.Request) bool { return true },
+}
+
+var stockData = map[string][]StockPrice{
+	"AAPL": {
+		{Time: "2024-09-01T10:00:00Z", Price: 123.45, Volume: 10000},
+		{Time: "2024-09-01T10:01:00Z", Price: 122.90, Volume: 11000},
+	},
+	"GOOG": {
+		{Time: "2024-09-01T10:00:00Z", Price: 678.90, Volume: 15000},
+		{Time: "2024-09-01T10:01:00Z", Price: 679.45, Volume: 12000},
+	},
+	"TSLA": {
+		{Time: "2024-09-01T10:00:00Z", Price: 750.00, Volume: 20000},
+		{Time: "2024-09-01T10:01:00Z", Price: 745.10, Volume: 18000},
+	},
+}
+
+type StockPrice struct {
+	Time   string  `json:"time"`
+	Price  float64 `json:"price"`
+	Volume int     `json:"volume"`
+}
+
+func getStockData(w http.ResponseWriter, r *http.Request) {
+	symbol := strings.TrimPrefix(r.URL.Path, "/stockdata/")
+	if symbol == "" {
+		http.Error(w, "Stock symbol is required", http.StatusBadRequest)
+		return
+	}
+
+	data, exists := stockData[symbol]
+	if !exists {
+		http.Error(w, "Stock symbol not found", http.StatusNotFound)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(data)
+}
+
+func handleConnection(w http.ResponseWriter, r *http.Request) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Println("Error while upgrading connection:", err)
+		return
+	}
+	defer conn.Close()
+
+	clients[conn] = true
+	defer delete(clients, conn)
+
+	for {
+		messageType, msg, err := conn.ReadMessage()
+		if err != nil {
+			log.Println("Error reading message:", err)
+			break
+		}
+
+		// Broadcast the message to all connected clients
+		for client := range clients {
+			if err := client.WriteMessage(messageType, msg); err != nil {
+				log.Println("Error writing message:", err)
+				client.Close()
+				delete(clients, client)
+			}
+		}
+	}
+}
+
+var clients = make(map[*websocket.Conn]bool)
+
+func main() {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/stockdata/", getStockData) // Register the route with the handler function
+	mux.HandleFunc("/ws", handleConnection)     // Register WebSocket route
+
+	handler := cors.Default().Handler(mux)
+	log.Println("Server started on :8080")
+	if err := http.ListenAndServe(":8080", handler); err != nil {
+		log.Fatal("Server failed:", err)
+	}
+}
+
+
+----------------------------
+
+
+we are going to continue with building this app here are the fetures 
+
+Chart Annotations
+Provide the ability for users to annotate charts with notes, trend lines, or key events (like earnings reports or market-moving news). This could be a useful feature for tracking personal analysis
+
+.Historical Price Distribution
+Show a histogram of how frequently certain price points occurred over time. This helps users understand price stability and outlier price movements.
+
+. Candlestick Patterns Recognition
+Add functionality to recognize and label common candlestick patterns, such as doji, engulfing patterns, or hammer patterns. This helps traders interpret the candlestick charts more efficiently.
+
+.Heatmap of Sector Performance: Show how different stock sectors perform at a glance. For example, if the technology sector is down for the day, the heatmap will show it in red.
+
+Scatter Plots
+Price vs. Volume: A scatter plot could show the relationship between price changes and trading volume, helping to understand how volume impacts stock price.
+Risk vs. Return: Compare individual stock returns to their risk levels (beta, standard deviation) to visualize the risk-return tradeoff.
+
+Donut/Pie Charts
+Sector Breakdown: Visualize the percentage of stocks in various sectors (e.g., tech, healthcare, finance) using a pie chart.
+Dividend Income Breakdown: A pie chart can be used to display which stocks are contributing to dividend income in a portfolio.
+
+Real-Time Data Enhancements
+Order Book Visualization: Display live bid/ask data (depth of the market) to visualize current buy/sell orders. This helps in identifying liquidity levels.
+Insider Trading Data: Track when company insiders (executives, board members) buy or sell their own company’s stock. This is often seen as a strong signal for stock trends.
+Earnings Reports Tracking: Highlight upcoming earnings dates and display actual vs. expected earnings when released.
+
+Buy/Sell Signals: Using technical indicators (RSI, MACD, Bollinger Bands), generate buy and sell signals for users to track trends more easily.
+
+Economic Indicators
+Interest Rates: Correlating stock performance with interest rates might be useful for analysis, particularly for sectors like banking or real estate.
+Inflation Data: Track how stock performance aligns with inflation rates.
+Unemployment Rates: Could be useful to display how certain industries (e.g., retail, services) perform in times of high or low unemployment.
+
+Price-Earnings (P/E) Ratio: A key metric to compare a company’s current share price to its per-share earnings.
+Dividend Yield: If the stock offers dividends, this metric shows the yield percentage based on the current price.
+MACD (Moving Average Convergence Divergence): A trend-following momentum indicator that shows the relationship between two moving averages of a stock’s price. It’s used for identifying potential buy and sell points.
+
+Volatility Index (VIX): If you want to track market volatility, adding VIX data would help assess how stable or volatile the overall market is.
+
+Advanced Financial Metrics
+Relative Strength Index (RSI): This is a momentum oscillator that measures the speed and change of price movements, helping to detect overbought or oversold conditions.
+Bollinger Bands: Bands plotted two standard deviations away from a simple moving average (SMA). These help in identifying volatility and price extremes.
+
+we need to keep in mind that the app is a single page app and using realtime data 
+
+
+I WILL PROVIDE ALL THE CODE WE HAVE SO FAR
