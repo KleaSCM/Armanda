@@ -9,6 +9,8 @@ interface ScatterPlotsProps {
 }
 
 const ScatterPlots: React.FC<ScatterPlotsProps> = ({ data }) => {
+  console.log('Scatter data received:', data); // Log data
+
   return (
     <div>
       <h3>Price vs Volume</h3>
@@ -33,5 +35,6 @@ const ScatterPlots: React.FC<ScatterPlotsProps> = ({ data }) => {
     </div>
   );
 };
+
 
 export default ScatterPlots;

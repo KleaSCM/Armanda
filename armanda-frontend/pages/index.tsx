@@ -116,8 +116,12 @@ const transformStockDataForScatter = (data: StockData): ScatterData => {
     y: calculateReturn(point), // Placeholder function for return calculation
   }));
 
+  console.log('Price-Volume data:', priceVolume); // Check data in console
+  console.log('Risk-Return data:', riskReturn); // Check data in console
+
   return { priceVolume, riskReturn };
 };
+
 
 // Example placeholder functions for risk and return calculations
 const calculateRisk = (point: CandlestickDataPoint): number => {
